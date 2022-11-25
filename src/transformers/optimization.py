@@ -47,6 +47,39 @@ def get_constant_schedule(optimizer: Optimizer, last_epoch: int = -1):
     return LambdaLR(optimizer, lambda _: 1, last_epoch=last_epoch)
 
 
+def get_inverted_sqrt_schedule_with_warmup(
+    optimizer: Optimizer, num_warmup_steps: int = 5000, last_epoch: int = -1
+):
+    """
+    Create a schedule with a learning rate that decreases following the values of the cosine function between the
+    initial lr set in the optimizer to 0, with several hard restarts, after a warmup period during which it increases
+    linearly between 0 and the initial lr set in the optimizer.
+
+    Args:
+        optimizer ([`~torch.optim.Optimizer`]):
+            The optimizer for which to schedule the learning rate.
+        num_warmup_steps (`int`):
+            The number of steps for the warmup phase.
+        num_training_steps (`int`):
+            The total number of training steps.
+        num_cycles (`int`, *optional*, defaults to 1):
+            The number of hard restarts to use.
+        last_epoch (`int`, *optional*, defaults to -1):
+            The index of the last epoch when resuming training.
+
+    Return:
+        `torch.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
+    """
+
+    peak = num_warmup_steps ** -0.5
+
+    def lr_lambda(current_step: int):
+        current_step += 1
+        return min(current_step ** -0.5, current_step * num_warmup_steps ** -1.5) / peak
+
+
+    return LambdaLR(optimizer, lr_lambda, last_epoch)
+
 def get_constant_schedule_with_warmup(optimizer: Optimizer, num_warmup_steps: int, last_epoch: int = -1):
     """
     Create a schedule with a constant learning rate preceded by a warmup period during which the learning rate
@@ -227,6 +260,7 @@ TYPE_TO_SCHEDULER_FUNCTION = {
     SchedulerType.POLYNOMIAL: get_polynomial_decay_schedule_with_warmup,
     SchedulerType.CONSTANT: get_constant_schedule,
     SchedulerType.CONSTANT_WITH_WARMUP: get_constant_schedule_with_warmup,
+    SchedulerType.INVSQRT: get_inverted_sqrt_schedule_with_warmup,
 }
 
 
@@ -262,6 +296,10 @@ def get_scheduler(
 
     if name == SchedulerType.CONSTANT_WITH_WARMUP:
         return schedule_func(optimizer, num_warmup_steps=num_warmup_steps)
+
+    if name == SchedulerType.INVSQRT:
+        logger.info(f"Inverted scheduler with warmup {num_warmup_steps}")
+        return schedule_func(optimizer, num_warmup_steps=num_warmup_steps) 
 
     # All other schedulers require `num_training_steps`
     if num_training_steps is None:

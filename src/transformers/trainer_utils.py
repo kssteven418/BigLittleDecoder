@@ -359,6 +359,7 @@ class SchedulerType(ExplicitEnum):
     POLYNOMIAL = "polynomial"
     CONSTANT = "constant"
     CONSTANT_WITH_WARMUP = "constant_with_warmup"
+    INVSQRT = "invsqrt"
 
 
 class TrainerMemoryTracker:
