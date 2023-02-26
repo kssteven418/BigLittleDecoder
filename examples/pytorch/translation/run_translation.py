@@ -50,6 +50,7 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
+from transformers.models.t5.modeling_t5 import T5BiLDModel
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.25.0.dev0")
@@ -97,6 +98,20 @@ class ModelArguments:
                 "with private models)."
             )
         },
+    )
+    large: Optional[str] = field(
+        default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
+    )
+    small: Optional[str] = field(
+        default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
+    )
+    fallback_threshold: Optional[float] = field(
+        default=None,
+        metadata={"help": "Threshold prob for switching to larger mode; for BiLD evaluation"},
+    )
+    rollback_threshold: Optional[float] = field(
+        default=None,
+        metadata={"help": "Threshold prob for roll back small model predictions; for BiLD evaluation"},
     )
 
 
@@ -358,12 +373,10 @@ def main():
     # Distributed training:
     # The .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
-    config = AutoConfig.from_pretrained(
-        model_args.config_name if model_args.config_name else model_args.model_name_or_path,
-        cache_dir=model_args.cache_dir,
-        revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
-    )
+
+    from transformers import FlaxT5EncoderModel, T5Tokenizer
+    tokenizer = T5Tokenizer.from_pretrained("google/mt5-small") # TODO: need a better solution
+    """
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -371,14 +384,63 @@ def main():
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
     )
-    model = AutoModelForSeq2SeqLM.from_pretrained(
-        model_args.model_name_or_path,
-        from_tf=bool(".ckpt" in model_args.model_name_or_path),
-        config=config,
-        cache_dir=model_args.cache_dir,
-        revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
-    )
+    """
+    if model_args.model_name_or_path == 'bild':
+        large_config = AutoConfig.from_pretrained(
+            model_args.config_name if model_args.config_name else model_args.large,
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            use_auth_token=True if model_args.use_auth_token else None,
+        )
+        small_config = AutoConfig.from_pretrained(
+            model_args.config_name if model_args.config_name else model_args.small,
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            use_auth_token=True if model_args.use_auth_token else None,
+        )
+        config = large_config
+        config.num_beams = data_args.num_beams
+
+        large = AutoModelForSeq2SeqLM.from_pretrained(
+            model_args.large,
+            from_tf=bool(".ckpt" in model_args.large),
+            config=large_config,
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            use_auth_token=True if model_args.use_auth_token else None,
+        )
+        small = AutoModelForSeq2SeqLM.from_pretrained(
+            model_args.small,
+            from_tf=bool(".ckpt" in model_args.small),
+            config=small_config,
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            use_auth_token=True if model_args.use_auth_token else None,
+        )
+        model = T5BiLDModel(
+            large=large,
+            small=small,
+            fallback_threshold=model_args.fallback_threshold,
+            rollback_threshold=model_args.rollback_threshold,
+        )
+
+    else:
+        config = AutoConfig.from_pretrained(
+            model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            use_auth_token=True if model_args.use_auth_token else None,
+        )
+
+        config.num_beams = data_args.num_beams
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            model_args.model_name_or_path,
+            from_tf=False,
+            config=config,
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            use_auth_token=True if model_args.use_auth_token else None,
+        )
 
     model.resize_token_embeddings(len(tokenizer))
 
@@ -591,10 +653,15 @@ def main():
         else data_args.val_max_target_length
     )
     num_beams = data_args.num_beams if data_args.num_beams is not None else training_args.generation_num_beams
+    e2e_time = 0.
     if training_args.do_eval:
         logger.info("*** Evaluate ***")
 
+        import time
+        s = time.time()
         metrics = trainer.evaluate(max_length=max_length, num_beams=num_beams, metric_key_prefix="eval")
+        e2e_time = time.time() - s
+
         max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
         metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
 
@@ -643,6 +710,8 @@ def main():
         trainer.push_to_hub(**kwargs)
     else:
         trainer.create_model_card(**kwargs)
+
+    print(f"e2e: {e2e_time}")
 
     return results
 
