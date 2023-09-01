@@ -1,7 +1,7 @@
-# Big Little Transformer Decoder (BiLD)
+# Speculative Decoding with Big Little Decoder (BiLD)
 
 
-This repo implements Big Little Decoder (BiLD) on top of the [HuggingFace](https://github.com/huggingface/transformers) framework.
+This repo implements Speculative Decoding with Big Little Decoder (BiLD) on top of the [HuggingFace](https://github.com/huggingface/transformers) framework.
 
 Check out the [paper](https://arxiv.org/abs/2302.07863) for more details.
 
