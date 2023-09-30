@@ -100,10 +100,10 @@ class ModelArguments:
         },
     )
     large: Optional[str] = field(
-        default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
+        default=None, metadata={"help": "The path to the large model used for BiLD."}
     )
     small: Optional[str] = field(
-        default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
+        default=None, metadata={"help": "The path to the small model used for BiLD."}
     )
     fallback_threshold: Optional[float] = field(
         default=None,
