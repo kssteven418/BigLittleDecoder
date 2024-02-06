@@ -42,9 +42,29 @@ CUDA_VISIBLE_DEVICES=0 python run_bild_translation.py --model bild --small [smal
 * `[RB]` is the rollback threshold (normally 2~5 works fine). `[FB]` is the fallback threshold that can have a value from 0 to 1. For more details of these two hyperparameters, please refer to our paper.
 
 
+
 We also provide a command for running the baseline model:
 ```
 CUDA_VISIBLE_DEVICES=0 python run_bild_translation.py --model [model_path] \
     --dataset_name iwslt2017 --dataset_config iwslt2017-de-en --source_lang de --target_lang en 
 ```
 * `[model_path]` is the path to the baseline model (e.g. `[small_model_path]` or `[large_model_path]`)
+
+## Pretrained Checkpoints
+
+We provide finetuned checkpoints that were used for the evaluations in our paper.
+
+| Dataset |  Model | Link |
+| -------- | -------- | -------- | 
+| IWSLT-2017-De-En    |  mT5-small  |  [link](https://huggingface.co/kssteven/mT5-small-iwslt2017-de-en) | 
+| IWSLT-2017-De-En    |  mT5-small (aligned)  |  [link](https://huggingface.co/kssteven/mT5-small-iwslt2017-de-en-bild-aligned) | 
+| IWSLT-2017-De-En    |  mT5-large  |  [link](https://huggingface.co/kssteven/mT5-large-iwslt2017-de-en) | 
+| WMT-2014-De-En    |  mT5-small  |  [link](https://huggingface.co/kssteven/mT5-small-wmt2014-de-en) | 
+| WMT-2014-De-En    |  mT5-small (aligned)  |  [link](https://huggingface.co/kssteven/mT5-small-wmt2014-de-en-bild-aligned) | 
+| WMT-2014-De-En    |  mT5-large  |  [link](https://huggingface.co/kssteven/mT5-large-wmt2014-de-en) | 
+| XSUM    |  T5-small  |  [link](https://huggingface.co/kssteven/T5-small-xsum) | 
+| XSUM    |  T5-small (aligned)  |  [link](https://huggingface.co/kssteven/T5-small-xsum-bild-aligned) | 
+| XSUM    |  T5-large  |  [link](https://huggingface.co/kssteven/T5-large-xsum) | 
+| CNNDM    |  T5-small  |  [link](https://huggingface.co/kssteven/T5-small-cnndm) | 
+| CNNDM    |  T5-small (aligned) |  [link](https://huggingface.co/kssteven/T5-small-cnndm-bild-aligned) | 
+| CNNDM    |  T5-large  |  [link](https://huggingface.co/kssteven/T5-large-cnndm) | 
